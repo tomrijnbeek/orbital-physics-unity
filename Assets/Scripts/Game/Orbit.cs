@@ -4,6 +4,20 @@ using System.Collections;
 public class Orbit : MonoBehaviour {
 
 	public Body parent;
+
+	public bool autoInitialize = true;
+
+	public float radius;
+	public float inclination;
+	public float longitudeOfAscendingNode;
+
+	public Vector3 rotationAxis {
+	    get {
+			return Quaternion.AngleAxis(-inclination,
+            	new Vector3(Mathf.Cos (Mathf.Deg2Rad * longitudeOfAscendingNode), 
+			            0,
+			            Mathf.Sin (Mathf.Deg2Rad * longitudeOfAscendingNode))) * Vector3.down; } }
+
 	Physics physics;
 	Body body;
 
@@ -14,22 +28,48 @@ public class Orbit : MonoBehaviour {
 	void Start () {
 		physics = Physics.Instance;
 		body = this.gameObject.GetComponent<Body>();
+
+		if (autoInitialize)
+			OrbitFromState();
+	}
+
+	void OrbitFromState() {
+		// vector pointing from parent's com towards body's com
+		var rv = this.transform.position - parent.transform.position;
+		// distance between parent's com and body's com
+		radius = rv.magnitude;
+		// normalised vector pointing from parent's com towards body's com
+		var rn = rv / radius;
+
+		var upDot = Vector3.Dot (rn, Vector3.up);
+
+		if (upDot == 0)
+		{
+			longitudeOfAscendingNode = 0;
+			inclination = 0;
+		}
+		else if (Mathf.Abs (upDot) < 1)
+		{
+			var side = Vector3.Cross (Vector3.up, rn);
+			longitudeOfAscendingNode = Mathf.Rad2Deg * Mathf.Sign (upDot) * Mathf.Atan2(side.x, side.z);
+
+			var projected = Vector3.Cross (side, Vector3.up);
+			inclination = Mathf.Rad2Deg * Mathf.Acos (Vector3.Dot (projected, rn));
+		}
 	}
 
 	void Update () {
 		// vector pointing from parent's com towards body's com
 		var rv = this.transform.position - parent.transform.position;
-		// distance between parent's com and body's com
-		var r = rv.magnitude;
 
 		// orbital speed
-		var v = Mathf.Sqrt(physics.G * (body.mass + parent.mass) / r);
+		var v = Mathf.Sqrt(physics.G * (body.mass + parent.mass) / radius);
 		// translation this frame
 		var dp = v * Time.deltaTime;
 		// rotation this frame
-		var da = dp / r * Mathf.Rad2Deg;
+		var da = dp / radius * Mathf.Rad2Deg;
 
-		this.transform.RotateAround(parent.transform.position, -Vector3.up, da);
+		this.transform.RotateAround(parent.transform.position, rotationAxis, da);
 	}
 
 	void LateUpdate() {
@@ -39,7 +79,7 @@ public class Orbit : MonoBehaviour {
 		{
 			for (int i = 0; i < circleParts + 1; i++)
 			{
-				lineRenderer.SetPosition(i, parent.transform.position + Quaternion.AngleAxis(i * 360 / circleParts, -Vector3.up) * rv);
+				lineRenderer.SetPosition(i, parent.transform.position + Quaternion.AngleAxis(i * 360 / circleParts, rotationAxis) * rv);
 			}
 		}
 	}
