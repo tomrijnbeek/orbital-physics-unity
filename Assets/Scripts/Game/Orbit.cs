@@ -26,6 +26,6 @@ public class Orbit : MonoBehaviour {
 		// rotation this frame
 		var da = dp / r * Mathf.Rad2Deg;
 
-		this.transform.RotateAround(parent.transform.position, Vector3.up, da);
+		this.transform.RotateAround(parent.transform.position, -Vector3.up, da);
 	}
 }
