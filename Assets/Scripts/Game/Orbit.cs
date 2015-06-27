@@ -7,6 +7,9 @@ public class Orbit : MonoBehaviour {
 	Physics physics;
 	Body body;
 
+	LineRenderer lineRenderer;
+	const int circleParts = 32;
+
 	// Use this for initialization
 	void Start () {
 		physics = Physics.Instance;
@@ -27,5 +30,33 @@ public class Orbit : MonoBehaviour {
 		var da = dp / r * Mathf.Rad2Deg;
 
 		this.transform.RotateAround(parent.transform.position, -Vector3.up, da);
+	}
+
+	void LateUpdate() {
+		var rv = this.transform.position - parent.transform.position;
+
+		if (lineRenderer)
+		{
+			for (int i = 0; i < circleParts + 1; i++)
+			{
+				lineRenderer.SetPosition(i, parent.transform.position + Quaternion.AngleAxis(i * 360 / circleParts, -Vector3.up) * rv);
+			}
+		}
+	}
+
+	public void Visualise()
+	{
+		lineRenderer = gameObject.AddComponent<LineRenderer>();
+
+		lineRenderer.material = new Material(Shader.Find("Particles/Additive"));
+		lineRenderer.SetColors(new Color(1,1,1,.8f), new Color(1,1,1,.8f));
+		lineRenderer.SetWidth(.02f, .02f);
+		lineRenderer.SetVertexCount(circleParts + 1);
+
+	}
+
+	public void EndVisualise()
+	{
+		Destroy(lineRenderer);
 	}
 }
