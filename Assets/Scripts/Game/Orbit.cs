@@ -115,7 +115,7 @@ public class Orbit : MonoBehaviour {
 
 		meanAnomaly = M;
 
-		// calculate the new mean anomaly
+		// calculate the new eccentric anomaly
 		float E;
 		if (M < 0)
 			E = M - e;
@@ -132,7 +132,7 @@ public class Orbit : MonoBehaviour {
 		E = Enew;
 
 		// calculate new new current anomaly
-//		var sinv = Mathf.Sin(E)*Mathf.Sqrt(1 - e^2)/(1 - e * Mathf.Cos(E));
+//		var sinv = Mathf.Sin(E)*Mathf.Sqrt(1 - e*e)/(1 - e * Mathf.Cos(E));
 //		var cosv = (Mathf.Cos(E) - e)/(1 - e * Mathf.Cos(E));
 //		v = Mathf.Atan2(sinv, cosv);
 
