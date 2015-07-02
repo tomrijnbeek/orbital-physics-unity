@@ -23,19 +23,43 @@ public class Orbit : MonoBehaviour {
 	public float eccentricity { get { return (apoapsis - periapsis) / (apoapsis + periapsis); } }
 	public float longitudeOfPeriapsis { get { return longitudeOfAscendingNode + argumentOfPeriapsis; } }
 
+	public float meanAnomaly;
+
 	Physics physics;
 	Body body;
 
 	LineRenderer lineRenderer;
 	const int circleParts = 32;
-
-	// Use this for initialization
+	
 	void Start () {
 		physics = Physics.Instance;
 		body = this.gameObject.GetComponent<Body>();
 
 		if (autoInitialize)
 			OrbitFromState();
+		Init ();
+	}
+
+	void Init() {
+		var e = eccentricity;
+
+		var toPeriapsis = new Vector3(Mathf.Cos (Mathf.Deg2Rad * longitudeOfPeriapsis) * Mathf.Cos (Mathf.Deg2Rad * inclination), Mathf.Sin (Mathf.Deg2Rad * inclination), Mathf.Sin (Mathf.Deg2Rad * longitudeOfPeriapsis) * Mathf.Cos (Mathf.Deg2Rad * inclination));
+		var toBody = (transform.position - parent.transform.position).normalized;
+
+		var normal = Vector3.Cross (Vector3.up, toPeriapsis);
+
+		// current true anomaly - angle between periapsis and position w.r.t. planet
+		var v = Mathf.Acos (Vector3.Dot(toPeriapsis, toBody));
+		if (Vector3.Dot (toBody, normal) < 0)
+			v = Mathf.PI * 2 - v;
+		
+		// current eccentric anomaly - angle between periapsis and position w.r.t. center
+		var sinE = Mathf.Sin(v)*Mathf.Sqrt(1 - e*e)/(1 + e * Mathf.Cos(v));
+		var cosE = (e + Mathf.Cos(v))/(1 + e * Mathf.Cos(v));
+		var E = Mathf.Atan2(sinE, cosE);
+		
+		// initial mean anomaly
+		meanAnomaly = E - e * Mathf.Sin(E);
 	}
 
 	void OrbitFromState() {
@@ -72,7 +96,6 @@ public class Orbit : MonoBehaviour {
 		var e = eccentricity;
 
 		var toPeriapsis = new Vector3(Mathf.Cos (Mathf.Deg2Rad * longitudeOfPeriapsis) * Mathf.Cos (Mathf.Deg2Rad * inclination), Mathf.Sin (Mathf.Deg2Rad * inclination), Mathf.Sin (Mathf.Deg2Rad * longitudeOfPeriapsis) * Mathf.Cos (Mathf.Deg2Rad * inclination));
-		var toBody = (transform.position - parent.transform.position).normalized;
 
 		var center = parent.transform.position - (a - periapsis) * toPeriapsis;
 		var normal = Vector3.Cross (Vector3.up, toPeriapsis);
@@ -80,21 +103,8 @@ public class Orbit : MonoBehaviour {
 		// mean motion
 		var n = Mathf.Sqrt(physics.G * (body.mass + parent.mass) / (a * a * a));
 
-		// current true anomaly - angle between periapsis and position w.r.t. planet
-		var v = Mathf.Acos (Vector3.Dot(toPeriapsis, toBody));
-		if (Vector3.Dot (toBody, normal) < 0)
-			v = Mathf.PI * 2 - v;
-
-		// current eccentric anomaly - angle between periapsis and position w.r.t. center
-		var sinE = Mathf.Sin(v)*Mathf.Sqrt(1 - e*e)/(1 + e * Mathf.Cos(v));
-		var cosE = (e + Mathf.Cos(v))/(1 + e * Mathf.Cos(v));
-		var E = Mathf.Atan2(sinE, cosE);
-
-		// current mean anomaly
-		var M = E - e * Mathf.Sin(E);
-
 		// advance the mean anomaly
-		M += n * Time.deltaTime;
+		var M = meanAnomaly + n * Time.deltaTime;
 
 		// make sure the mean anomaly lies in [-pi,pi]
 		M %= 2 * Mathf.PI;
@@ -103,14 +113,16 @@ public class Orbit : MonoBehaviour {
 		else if (M > Mathf.PI)
 			M -= 2 * Mathf.PI;
 
-		// calculate the new mean anomaly	
+		meanAnomaly = M;
+
+		// calculate the new mean anomaly
+		float E;
 		if (M < 0)
 			E = M - e;
 		else
 			E = M + e;
 			
 		var Enew = E;
-		var first = true;
 
 		do
 		{
